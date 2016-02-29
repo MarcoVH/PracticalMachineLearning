@@ -1,0 +1,107 @@
+---
+title: 'Course Project: Prediction Assignment Writeup'
+author: "Marco Vázquez"
+output: html_document
+---
+
+#Background
+
+Using devices such as **Jawbone Up, Nike FuelBand, and Fitbit** it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here.
+
+#Data
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source:
+http://groupware.les.inf.puc-rio.br/har.
+
+#Loading libraries, data and creation of sets
+
+The first step: load the libraries and data. We make use of the alternative of reading the csv direct from the link, this way, the reproducibility is easiest.
+
+```{r}
+library(caret)
+library(randomForest)
+library(ggplot2)
+library(rpart)
+train<-read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",na.strings=c("NA","#DIV/0!", ""))
+test<-read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",na.strings=c("NA","#DIV/0!", ""))
+```
+
+For reproducibility we set a seed. The first look is the dim of the data set, the names of variables and classes and the characteristics of the variable classe that we will predict 
+
+```{r}
+set.seed(8888)
+dim(train)
+dim(test)
+sapply(train,class)
+plot(train$classe)
+```
+
+We delete all columns with missing values
+
+```{r}
+train<-train[,colSums(is.na(train)) == 0]
+test <-test[,colSums(is.na(test)) == 0]
+```
+
+Looking at the variables, we can ommit the irrelevant variables as timestamp or user_name (irrelevant for our current purpouses)
+
+```{r}
+train<-train[,-c(1:7)]
+test <-test[,-c(1:7)]
+```
+
+##The partition
+
+The training data set is partionned into 2 sets: subTrain (75%) and subTest (25%).This will be performed using random subsampling without replacement.
+
+
+```{r}
+indicators<-createDataPartition(y=train$classe, p=0.75, list=FALSE)
+subTrain<-train[indicators, ] 
+subTest<-train[-indicators, ]
+dim(subTrain)
+dim(subTest)
+head(subTrain)
+head(subTest)
+```
+
+
+\newpage
+
+#Prediction Model: Decision Tree
+
+I will perform a rpart model with the data.
+
+```{r}
+modeltree <- rpart(classe ~ ., data=subTrain, method="class")
+predictiontree <- predict(modeltree, subTest, type = "class")
+confusionMatrix(predictiontree, subTest$classe)
+```
+
+#Prediction Model: Random Forest
+
+The first tree was just for comparing with this "more stable" model: randomforest.
+
+```{r}
+modelrf <- randomForest(classe ~. , data=subTrain, method="class")
+predictionrf <- predict(modelrf, subTest, type = "class")
+confusionMatrix(predictionrf, subTest$classe)
+```
+
+#Conclussion
+
+With this results we can choose "with eyes closed" the random forest model since it has an accuracy of 0.996, with this results we can expect 1 or none error bad classified
+
+\newpage
+#Submission
+
+```{r}
+submission <- predict(modelrf, test, type="class")
+submission
+```
